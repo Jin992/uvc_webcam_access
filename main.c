@@ -13,14 +13,15 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/mman.h>
-#include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include <linux/uvcvideo.h>
-#include <cstdint>
-#include <err.h>
-#include <iostream>
+#include <stdint.h>
 
-#define DEBUG  0;
+#include <err.h>
+//#include <iostream>
+#include <sys/ioctl.h>
+
+#define DEBUG  0
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -30,42 +31,16 @@
 
 #endif
 
+#include "libv4l2-hw.h"
+#include "usbinfo.h"
+#include "UvcH264.h"
 
-typedef enum _uvcx_control_selector_t {
-    UVCX_VIDEO_CONFIG_PROBE			= 0x01,
-    UVCX_VIDEO_CONFIG_COMMIT		= 0x02,
-    UVCX_RATE_CONTROL_MODE			= 0x03,
-    UVCX_TEMPORAL_SCALE_MODE		= 0x04,
-    UVCX_SPATIAL_SCALE_MODE			= 0x05,
-    UVCX_SNR_SCALE_MODE				= 0x06,
-    UVCX_LTR_BUFFER_SIZE_CONTROL	= 0x07,
-    UVCX_LTR_PICTURE_CONTROL		= 0x08,
-    UVCX_PICTURE_TYPE_CONTROL		= 0x09,
-    UVCX_VERSION					= 0x0A,
-    UVCX_ENCODER_RESET				= 0x0B,
-    UVCX_FRAMERATE_CONFIG			= 0x0C,
-    UVCX_VIDEO_ADVANCE_CONFIG		= 0x0D,
-    UVCX_BITRATE_LAYERS				= 0x0E,
-    UVCX_QP_STEPS_LAYERS			= 0x0F,
-} uvcx_control_selector_t;
-
-
-
-typedef struct _uvcx_bitrate_layers_t {
-    uint16_t	wLayerID;
-    uint32_t	dwPeakBitrate;
-    uint32_t	dwAverageBitrate;
-} __attribute__ ((__packed__)) uvcx_bitrate_layers_t;
-
-typedef struct _uvcx_framerate_config_t {
-    uint16_t	wLayerID;
-    uint32_t	dwFrameInterval;
-} __attribute__ ((__packed__)) uvcx_framerate_config_t;
-
-typedef struct _uvcx_picture_type_control_t {
-    uint16_t	wLayerID;
-    uint16_t	wPicType;
-} __attribute__ ((__packed__)) uvcx_picture_type_control_t;
+#define SET_CUR 0x01
+#define GET_CUR 0x81
+#define GET_MIN 0x82
+#define GET_MAX 0x83
+#define GET_LEN 0x85
+#define GET_INFO 0x86
 
 enum io_method {
     IO_METHOD_READ,
@@ -87,6 +62,7 @@ static int out_buf;
 static int force_format = 0;
 static int frame_count = 200;
 static int frame_number = 0;
+static int unitId = 0;
 
 static void errno_exit(const char *s)
 {
@@ -105,28 +81,37 @@ static int xioctl(int fh, int request, void *arg)
     return r;
 }
 
+int video_H264_set_bitrate(int bitrate) {
 
+    uvcx_bitrate_layers_t b;
+    b.wLayerID = 0;
+    b.dwAverageBitrate = bitrate;
+    b.dwPeakBitrate = bitrate;
+    struct uvc_xu_control_query xu;
+    xu.unit = unitId;
+    xu.selector = UVCX_BITRATE_LAYERS;
+    xu.query = SET_CUR;
+    xu.size = sizeof(b);
+    xu.data = (unsigned char*)&b;
+    int ret = xioctl(fd, UVCIOC_CTRL_QUERY, &xu);
+    if(ret < 0) warn("ioctl(UVCIOC_CTRL_QUERY) 1");
+    return ret;
+}
 
 static void process_image(const void *p, int size)
 {
     int status;
     frame_number++;
 
-    if (out_buf==0)
-    {
-
-/* write to file */
-
+    if (out_buf==0) {
+        /* write to file */
         FILE *fp=fopen("video.raw","ab");
         fwrite(p, size, 1, fp);
         fflush(fp);
         fclose(fp);
     }
-    else
-    {
-
-/* write to stdout */
-
+    else {
+        /* write to stdout */
         status = write(1, p, size);
         if(status == -1)
             perror("write");
@@ -143,20 +128,15 @@ static int read_frame(void)
             if (-1 == read(fd, buffers[0].start, buffers[0].length)) {
                 switch (errno) {
                     case EAGAIN: {
-#ifdef DEBUG
+#if DEBUG
                     fprintf(stderr, "EIGAIN in read 147 line\n");
 #endif
                         return 0;
                     }
 
-
                     case EIO:
-/* Could ignore EIO, see spec. */
-
-
-/* fall through */
-
-
+                    /* Could ignore EIO, see spec. */
+                    /* fall through */
                     default:
                         errno_exit("read");
                 }
@@ -174,19 +154,13 @@ static int read_frame(void)
             if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
                 switch (errno) {
                     case EAGAIN:
-#ifdef DEBUG
+#if DEBUG
                         fprintf(stderr, "EIGAIN in mmap 178 line\n");
 #endif
                         return 0;
-
                     case EIO:
-/* Could ignore EIO, see spec. */
-
-
-
-/* fall through */
-
-
+                    /* Could ignore EIO, see spec. */
+                    /* fall through */
                     default:
                         errno_exit("VIDIOC_DQBUF");
                 }
@@ -209,18 +183,14 @@ static int read_frame(void)
             if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
                 switch (errno) {
                     case EAGAIN:
-#ifdef DEBUG
+#if DEBUG
                         fprintf(stderr, "EIGAIN in usrptr 113 line\n");
 #endif
                         return 0;
 
                     case EIO:
-/* Could ignore EIO, see spec. */
-
-
-/* fall through */
-
-
+                    /* Could ignore EIO, see spec. */
+                    /* fall through */
                     default:
                         errno_exit("VIDIOC_DQBUF");
                 }
@@ -252,8 +222,9 @@ static void mainloop(void)
     count = frame_count;
 
 //    while ((count-- > 0) || loopIsInfinite) {
-    while (true) {
+    while (1) {
         for (;; ) {
+            video_H264_set_bitrate(100000);
             fd_set fds;
             struct timeval tv;
             int r;
@@ -273,9 +244,10 @@ static void mainloop(void)
                 fprintf(stderr, "select timeout\n");
                 exit(EXIT_FAILURE);
             }
+
             if (read_frame()) {
-#ifdef DEBUG
-                //fprintf(stderr, "failed to read frame\n");
+#if DEBUG
+                fprintf(stderr, "failed to read frame\n");
 #endif
                 break;
             }
@@ -302,7 +274,7 @@ static void stop_capturing(void)
                 errno_exit("VIDIOC_STREAMOFF");
             break;
     }
-#ifdef DEBUG
+#if DEBUG
     fprintf(stderr, "Capture has been stoped\n");
 #endif
 }
@@ -379,14 +351,14 @@ static void uninit_device(void)
     }
 
     free(buffers);
-#ifdef DEBUG
+#if DEBUG
     fprintf(stderr, "uninit device\n");
 #endif
 }
 
 static void init_read(unsigned int buffer_size)
 {
-    buffers = (buffer *)calloc(1, sizeof(*buffers));
+    buffers = calloc(1, sizeof(*buffers));
 
     if (!buffers) {
         fprintf(stderr, "Out of memory\n");
@@ -428,7 +400,7 @@ static void init_mmap(void)
         exit(EXIT_FAILURE);
     }
 
-    buffers = (buffer *)calloc(req.count, sizeof(*buffers));
+    buffers = calloc(req.count, sizeof(*buffers));
 
     if (!buffers) {
         fprintf(stderr, "Out of memory\n");
@@ -449,18 +421,7 @@ static void init_mmap(void)
 
         buffers[n_buffers].length = buf.length;
         buffers[n_buffers].start =
-                mmap(NULL
-/* start anywhere */
-,
-                     buf.length,
-                     PROT_READ | PROT_WRITE
-/* required */
-,
-                     MAP_SHARED
-/* recommended */
-,
-                     fd, buf.m.offset);
-
+                mmap(NULL/* start anywhere */, buf.length, PROT_READ | PROT_WRITE /* required */, MAP_SHARED /* recommended */, fd, buf.m.offset);
         if (MAP_FAILED == buffers[n_buffers].start)
             errno_exit("mmap");
     }
@@ -468,10 +429,8 @@ static void init_mmap(void)
 
 static void init_userp(unsigned int buffer_size)
 {
-    struct v4l2_requestbuffers req;
-
+    struct v4l2_requestbuffers req = {0};
     CLEAR(req);
-
     req.count  = 4;
     req.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_USERPTR;
@@ -486,8 +445,7 @@ static void init_userp(unsigned int buffer_size)
         }
     }
 
-    buffers = (buffer *)calloc(4, sizeof(*buffers));
-
+    buffers = calloc(4, sizeof(*buffers));
     if (!buffers) {
         fprintf(stderr, "Out of memory\n");
         exit(EXIT_FAILURE);
@@ -506,16 +464,82 @@ static void init_userp(unsigned int buffer_size)
 
 static void init_device(void)
 {
-    struct v4l2_capability cap;
-    struct v4l2_cropcap cropcap;
-    struct v4l2_crop crop;
-    struct v4l2_format fmt;
+    struct v4l2_capability cap = {0};
+    struct v4l2_cropcap cropcap = {0};
+    struct v4l2_crop crop = {0};
+    struct v4l2_format fmt = {0};
+    struct v4l2hw info;
     unsigned int min;
+    bzero(&info, sizeof(info));
+    info.busnum = 1;
+    info.devnum = 12;
+
+    if(v4l2_init(fd, &info) == -1)
+        err(1, "not a hardware encoding camera");
+    unitId = info.unitId;
+    int ret;
+    uvcx_video_config_probe_commit_t probeMax;
+    uvcx_video_config_probe_commit_t probeCur;
+    memset(&probeMax, 0, sizeof(probeMax));
+    memset(&probeCur, 0, sizeof(probeCur));
+    u_int16_t len = 0;
+    struct uvc_xu_control_query xu;
+    memset(&xu, 0, sizeof (xu));
+    xu.unit = info.unitId;
+    xu.selector = UVCX_VIDEO_CONFIG_PROBE;
+    xu.query = GET_LEN;
+    xu.size = sizeof(len);
+    xu.data = (unsigned char*)&len;
+    ret = ioctl(fd, UVCIOC_CTRL_QUERY, &xu);
+    if(ret < 0 || (len != sizeof(probeMax) && len != 42)) err(1, "ioctl(UVCIOC_CTRL_QUERY) 1");
+    xu.unit = info.unitId;
+    xu.selector = UVCX_VIDEO_CONFIG_PROBE;
+    xu.query = GET_MAX;
+    xu.size = len; //sizeof(probeMax);
+    xu.data = (unsigned char*)&probeMax;
+    ret = xioctl(fd, UVCIOC_CTRL_QUERY, &xu);
+    if(ret < 0) err(1, "ioctl(UVCIOC_CTRL_QUERY) 2");
+    xu.unit = info.unitId;
+    xu.selector = UVCX_VIDEO_CONFIG_PROBE;
+    xu.query = GET_CUR;
+    xu.size = len; //sizeof(probeCur);
+    xu.data = (unsigned char*)&probeCur;
+    ret = ioctl(fd, UVCIOC_CTRL_QUERY, &xu);
+    if(ret < 0) err(1, "ioctl(UVCIOC_CTRL_QUERY) 3");
+#define FPS2PERIOD(fps) ((int32_t)(1e9/fps))
+    // Set parameters
+    memset(&probeCur, 0, sizeof(probeCur));
+    probeCur.bmHints = 0;
+    probeCur.dwFrameInterval = FPS2PERIOD(3000);
+    probeCur.bmHints |= BMHINTS_FRAME_INTERVAL;
+    //probeCur.wWidth = 1920;
+    //probeCur.wHeight = 1080;
+    //probeCur.bmHints |= BMHINTS_RESOLUTION;
+    probeCur.wIFramePeriod = 500;
+    probeCur.bmHints |= BMHINTS_IFRAMEPERIOD;
+    probeCur.bRateControlMode = RATECONTROL_CBR;
+    probeCur.bmHints |= BMHINTS_RATECONTROL;
+    probeCur.dwBitRate = 10000000;
+    probeCur.bmHints |= BMHINTS_BITRATE;
+    probeCur.bUsageType = USAGETYPE_REALTIME;
+    probeCur.bmHints |= BMHINTS_USAGE;
+
+    probeCur.bmHints |= BMHINTS_ENTROPY;
+    probeCur.bEntropyCABAC = ENTROPY_CABAC;
+    probeCur.bmHints |= BMHINTS_PROFILE;
+    probeCur.wProfile = PROFILE_HIGH;
+
+    xu.unit = info.unitId;
+    xu.selector = UVCX_VIDEO_CONFIG_COMMIT;
+    xu.query = SET_CUR;
+    xu.size = len; //sizeof(probeCur);
+    xu.data = (unsigned char*)&probeCur;
+    ret = ioctl(fd, UVCIOC_CTRL_QUERY, &xu);
+    if(ret < 0) err(1, "ioctl(UVCIOC_CTRL_QUERY) 4");
 
     if (-1 == xioctl(fd, VIDIOC_QUERYCAP, &cap)) {
         if (EINVAL == errno) {
-            fprintf(stderr, "%s is no V4L2 device\n",
-                    dev_name);
+            fprintf(stderr, "%s is no V4L2 device\n", dev_name);
             exit(EXIT_FAILURE);
         } else {
             errno_exit("VIDIOC_QUERYCAP");
@@ -523,16 +547,14 @@ static void init_device(void)
     }
 
     if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-        fprintf(stderr, "%s is no video capture device\n",
-                dev_name);
+        fprintf(stderr, "%s is no video capture device\n", dev_name);
         exit(EXIT_FAILURE);
     }
 
     switch (io) {
         case IO_METHOD_READ:
             if (!(cap.capabilities & V4L2_CAP_READWRITE)) {
-                fprintf(stderr, "%s does not support read i/o\n",
-                        dev_name);
+                fprintf(stderr, "%s does not support read i/o\n", dev_name);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -540,8 +562,7 @@ static void init_device(void)
         case IO_METHOD_MMAP:
         case IO_METHOD_USERPTR:
             if (!(cap.capabilities & V4L2_CAP_STREAMING)) {
-                fprintf(stderr, "%s does not support streaming i/o\n",
-                        dev_name);
+                fprintf(stderr, "%s does not support streaming i/o\n", dev_name);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -587,27 +608,27 @@ static void init_device(void)
             fmt.fmt.pix.field	= V4L2_FIELD_INTERLACED;
         }
 
-        if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))
+        if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt)) {
             errno_exit("VIDIOC_S_FMT");
-
-
-/* Note VIDIOC_S_FMT may change width and height. */
-
-    } else {
-/* Preserve original settings as set by v4l2-ctl for example */
-
-        if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
-            errno_exit("VIDIOC_G_FMT");
+        }
+        /* Note VIDIOC_S_FMT may change width and height. */
+        } else {
+        /* Preserve original settings as set by v4l2-ctl for example */
+            if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt)) {
+                errno_exit("VIDIOC_G_FMT");
+        }
     }
 
-/* Buggy driver paranoia. */
-
+    /* Buggy driver paranoia. */
     min = fmt.fmt.pix.width * 2;
-    if (fmt.fmt.pix.bytesperline < min)
+    if (fmt.fmt.pix.bytesperline < min) {
         fmt.fmt.pix.bytesperline = min;
+    }
+
     min = fmt.fmt.pix.bytesperline * fmt.fmt.pix.height;
-    if (fmt.fmt.pix.sizeimage < min)
+    if (fmt.fmt.pix.sizeimage < min) {
         fmt.fmt.pix.sizeimage = min;
+    }
 
     switch (io) {
         case IO_METHOD_READ:
@@ -630,7 +651,7 @@ static void close_device(void)
         errno_exit("close");
 
     fd = -1;
-#ifdef DEBUG
+#if DEBUG
     fprintf(stderr, "Device has been closed\n");
 #endif
 }
@@ -657,7 +678,9 @@ static void open_device(void)
                 dev_name, errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
-    std::cout << "Device opened successfully." << std::endl;
+#if DEBUG
+    fprintf(stderr, "Device opened successfully.\n");
+#endif
 }
 
 static void usage(FILE *fp, int argc, char **argv)
@@ -697,12 +720,6 @@ static const struct option
         { 0, 0, 0, 0 }
 };
 
-#define SET_CUR 0x01
-#define GET_CUR 0x81
-#define GET_MIN 0x82
-#define GET_MAX 0x83
-#define GET_LEN 0x85
-#define GET_INFO 0x86
 
 int main(int argc, char **argv)
 {
@@ -712,9 +729,7 @@ int main(int argc, char **argv)
         int idx;
         int c;
 
-        c = getopt_long(argc, argv,
-                        short_options, long_options, &idx);
-
+        c = getopt_long(argc, argv, short_options, long_options, &idx);
         if (-1 == c)
             break;
 
@@ -770,6 +785,7 @@ int main(int argc, char **argv)
     open_device();
     init_device();
     start_capturing();
+
     mainloop();
     stop_capturing();
     uninit_device();
@@ -777,8 +793,6 @@ int main(int argc, char **argv)
     fprintf(stderr, "\n");
     return 0;
 }
-
-
 
 
 
