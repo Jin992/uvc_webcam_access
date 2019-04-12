@@ -21,7 +21,7 @@
 //#include <iostream>
 #include <sys/ioctl.h>
 
-#define DEBUG  0
+#define DEBUG  0;
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -129,10 +129,15 @@ static int read_frame(void)
                 switch (errno) {
                     case EAGAIN: {
 #if DEBUG
+
                     fprintf(stderr, "EIGAIN in read 147 line\n");
 #endif
                         return 0;
                     }
+
+
+
+
 
                     case EIO:
                     /* Could ignore EIO, see spec. */
@@ -154,7 +159,11 @@ static int read_frame(void)
             if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
                 switch (errno) {
                     case EAGAIN:
+
 #if DEBUG
+
+
+
                         fprintf(stderr, "EIGAIN in mmap 178 line\n");
 #endif
                         return 0;
@@ -183,7 +192,11 @@ static int read_frame(void)
             if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
                 switch (errno) {
                     case EAGAIN:
+
 #if DEBUG
+=======
+
+
                         fprintf(stderr, "EIGAIN in usrptr 113 line\n");
 #endif
                         return 0;
@@ -222,7 +235,11 @@ static void mainloop(void)
     count = frame_count;
 
 //    while ((count-- > 0) || loopIsInfinite) {
+
     while (1) {
+
+
+
         for (;; ) {
             video_H264_set_bitrate(100000);
             fd_set fds;
@@ -243,7 +260,7 @@ static void mainloop(void)
             if (0 == r) {
                 fprintf(stderr, "select timeout\n");
                 exit(EXIT_FAILURE);
-            }
+	    }
 
             if (read_frame()) {
 #if DEBUG
@@ -274,6 +291,7 @@ static void stop_capturing(void)
                 errno_exit("VIDIOC_STREAMOFF");
             break;
     }
+
 #if DEBUG
     fprintf(stderr, "Capture has been stoped\n");
 #endif
@@ -351,7 +369,9 @@ static void uninit_device(void)
     }
 
     free(buffers);
+
 #if DEBUG
+
     fprintf(stderr, "uninit device\n");
 #endif
 }
@@ -651,6 +671,7 @@ static void close_device(void)
         errno_exit("close");
 
     fd = -1;
+
 #if DEBUG
     fprintf(stderr, "Device has been closed\n");
 #endif
@@ -679,8 +700,9 @@ static void open_device(void)
         exit(EXIT_FAILURE);
     }
 #if DEBUG
-    fprintf(stderr, "Device opened successfully.\n");
+   fprintf(stderr, "Device opened successfully.\n");
 #endif
+
 }
 
 static void usage(FILE *fp, int argc, char **argv)
@@ -812,3 +834,8 @@ int main(int argc, char **argv)
 
 
 
+<<<<<<< HEAD:main.c
+=======
+
+
+>>>>>>> f977b62f9d7acb2e8c828ec74fd7c49ceb84ac38:main.cpp
