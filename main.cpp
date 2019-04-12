@@ -18,6 +18,9 @@
 #include <linux/uvcvideo.h>
 #include <cstdint>
 #include <err.h>
+#include <iostream>
+
+#define DEBUG  false;
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -139,8 +142,13 @@ static int read_frame(void)
         case IO_METHOD_READ:
             if (-1 == read(fd, buffers[0].start, buffers[0].length)) {
                 switch (errno) {
-                    case EAGAIN:
+                    case EAGAIN: {
+#ifdef DEBUG
+                    fprintf(stderr, "EIGAIN in read 147 line\n");
+#endif
                         return 0;
+                    }
+
 
                     case EIO:
 /* Could ignore EIO, see spec. */
@@ -166,6 +174,9 @@ static int read_frame(void)
             if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
                 switch (errno) {
                     case EAGAIN:
+#ifdef DEBUG
+                        fprintf(stderr, "EIGAIN in mmap 178 line\n");
+#endif
                         return 0;
 
                     case EIO:
@@ -198,6 +209,9 @@ static int read_frame(void)
             if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
                 switch (errno) {
                     case EAGAIN:
+#ifdef DEBUG
+                        fprintf(stderr, "EIGAIN in usrptr 113 line\n");
+#endif
                         return 0;
 
                     case EIO:
@@ -237,7 +251,8 @@ static void mainloop(void)
     if (frame_count == 0) loopIsInfinite = 1; //infinite loop
     count = frame_count;
 
-    while ((count-- > 0) || loopIsInfinite) {
+//    while ((count-- > 0) || loopIsInfinite) {
+    while (true) {
         for (;; ) {
             fd_set fds;
             struct timeval tv;
@@ -245,29 +260,26 @@ static void mainloop(void)
 
             FD_ZERO(&fds);
             FD_SET(fd, &fds);
-
-/* Timeout. */
-
+            /* Timeout. */
             tv.tv_sec = 2;
             tv.tv_usec = 0;
-
             r = select(fd + 1, &fds, NULL, NULL, &tv);
-
             if (-1 == r) {
                 if (EINTR == errno)
                     continue;
                 errno_exit("select");
             }
-
             if (0 == r) {
                 fprintf(stderr, "select timeout\n");
                 exit(EXIT_FAILURE);
             }
-
-            if (read_frame())
+            if (read_frame()) {
+#ifdef DEBUG
+                fprintf(stderr, "failed to read frame\n");
+#endif
                 break;
-/* EAGAIN - continue select loop. */
-
+            }
+        /* EAGAIN - continue select loop. */
         }
     }
 }
@@ -290,6 +302,9 @@ static void stop_capturing(void)
                 errno_exit("VIDIOC_STREAMOFF");
             break;
     }
+#ifdef DEBUG
+    fprintf(stderr, "Capture has been stoped\n");
+#endif
 }
 
 static void start_capturing(void)
@@ -364,6 +379,9 @@ static void uninit_device(void)
     }
 
     free(buffers);
+#ifdef DEBUG
+    fprintf(stderr, "uninit device\n");
+#endif
 }
 
 static void init_read(unsigned int buffer_size)
@@ -528,54 +546,41 @@ static void init_device(void)
             }
             break;
     }
-
-
-
-/* Select video input, video standard and tune here. */
-
-
-
+    /* Select video input, video standard and tune here. */
     CLEAR(cropcap);
-
     cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
     if (0 == xioctl(fd, VIDIOC_CROPCAP, &cropcap)) {
         crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         crop.c = cropcap.defrect;
-/* reset to default */
-
-
+        /* reset to default */
         if (-1 == xioctl(fd, VIDIOC_S_CROP, &crop)) {
             switch (errno) {
                 case EINVAL:
-
-/* Cropping not supported. */
-
+                /* Cropping not supported. */
                     break;
                 default:
-/* Errors ignored. */
-
+                /* Errors ignored. */
                     break;
             }
         }
-    } else {
-/* Errors ignored. */
-
     }
-
-
+    else {
+    /* Errors ignored. */
+    }
     CLEAR(fmt);
-
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fprintf(stderr, "Force Format %d\n", force_format);
+    fprintf(stderr, "Selected resolution ");
     if (force_format) {
         if (force_format==2){
+            fprintf(stderr, "1920 x 1080 h.264 codec");
             fmt.fmt.pix.width       = 1920;
             fmt.fmt.pix.height      = 1080;
             fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_H264;
             fmt.fmt.pix.field       = V4L2_FIELD_NONE;
         }
         else if(force_format==1){
+            fprintf(stderr, "640 x 480 YUYV raw");
             fmt.fmt.pix.width	= 640;
             fmt.fmt.pix.height	= 480;
             fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
@@ -625,6 +630,9 @@ static void close_device(void)
         errno_exit("close");
 
     fd = -1;
+#ifdef DEBUG
+    fprintf(stderr, "Device has been closed\n");
+#endif
 }
 
 static void open_device(void)
@@ -642,15 +650,14 @@ static void open_device(void)
         exit(EXIT_FAILURE);
     }
 
-    fd = open(dev_name, O_RDWR
-/* required */
- | O_NONBLOCK, 0);
+    fd = open(dev_name, O_RDWR | O_NONBLOCK, 0);
 
     if (-1 == fd) {
         fprintf(stderr, "Cannot open '%s': %d, %s\n",
                 dev_name, errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
+    std::cout << "Device opened successfully." << std::endl;
 }
 
 static void usage(FILE *fp, int argc, char **argv)
@@ -699,7 +706,7 @@ static const struct option
 
 int main(int argc, char **argv)
 {
-    dev_name = "/dev/video1";
+    dev_name = "/dev/video0";
 
     for (;; ) {
         int idx;
@@ -770,3 +777,24 @@ int main(int argc, char **argv)
     fprintf(stderr, "\n");
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
