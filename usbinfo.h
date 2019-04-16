@@ -8,7 +8,7 @@ struct interface_xu_descriptor {
   int8_t bDescriptorType;
   int8_t bDescriptorSubType;
   int8_t bUnitID;
-  uint8_t guidExtensionCode[16];
+  u_int8_t guidExtensionCode[16];
   int8_t bNumControls;
   int8_t bNrInPins;
   int8_t bControlSize;
@@ -35,8 +35,8 @@ struct interface_xu_descriptor {
 #define USB_CS_DEVICE		0x21
 #define USB_CS_INTERFACE	0x24
 
-#define WARNING_LOG(...) {printf("WW "); printf(__VA_ARGS__);}
-#define ERROR_LOG(...) {printf("EE "); printf(__VA_ARGS__);}
+#define WARNING_LOG(...) {fprintf(stderr, "WW "); fprintf(stderr, __VA_ARGS__);}
+#define ERROR_LOG(...) {fprintf(stderr, "EE "); fprintf(stderr, __VA_ARGS__);}
 
 
 #endif

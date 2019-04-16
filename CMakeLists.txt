@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.1)
-project(UVC_Video_Capture)
+cmake_minimum_required(VERSION 3.13)
+project(wb)
 
-set(CMAKE_C_STANDARD 99)
-link_directories(${CMAKE_SOURCE_DIR}/lib)
+set(CMAKE_CXX_STANDARD 11)
+find_package(Boost 1.58 COMPONENTS system regex  filesystem REQUIRED)
+find_package( OpenCV REQUIRED )
 
-add_executable(UVC_Video_Capture main.c usbinfo.c)
-target_link_libraries(UVC_Video_Capture -ludev -lusb-1.0 -lv4l2-hw -lv4l2-extra-hw)
+add_executable(wb main.cpp usbinfo.c video_ext.h UvcH264.h libv4l2-hw.h VideoCapture.cpp)
+target_link_libraries(wb usb-1.0 -ludev -pthread ${Boost_LIBRARIES})

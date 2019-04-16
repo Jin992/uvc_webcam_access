@@ -137,8 +137,7 @@
 
 /* UVC H.264 control selectors */
 
-typedef enum _uvcx_control_selector_t
-{
+typedef enum _uvcx_control_selector_t {
 	UVCX_VIDEO_CONFIG_PROBE			= 0x01,
 	UVCX_VIDEO_CONFIG_COMMIT		= 0x02,
 	UVCX_RATE_CONTROL_MODE			= 0x03,
@@ -156,9 +155,7 @@ typedef enum _uvcx_control_selector_t
 	UVCX_QP_STEPS_LAYERS			= 0x0F,
 } uvcx_control_selector_t;
 
-
-typedef struct _uvcx_video_config_probe_commit_t
-{
+typedef struct _uvcx_video_config_probe_commit_t {
 	DWORD	dwFrameInterval;
 	DWORD	dwBitRate;
 	WORD	bmHints;
@@ -168,7 +165,7 @@ typedef struct _uvcx_video_config_probe_commit_t
 	WORD	wSliceUnits;
 	WORD	wSliceMode;
 	WORD	wProfile;
-	WORD	wIFramePeriod;
+	u_int16_t	wIFramePeriod;
 	WORD	wEstimatedVideoDelay;
 	WORD	wEstimatedMaxConfigDelay;
 	BYTE	bUsageType;
@@ -190,102 +187,76 @@ typedef struct _uvcx_video_config_probe_commit_t
 	WORD	wLeakyBucketSize;
 } __attribute__ ((__packed__)) uvcx_video_config_probe_commit_t;
 
-
-typedef struct _uvcx_rate_control_mode_t
-{
+typedef struct _uvcx_rate_control_mode_t {
 	WORD	wLayerID;
 	BYTE	bRateControlMode;
-} uvcx_rate_control_mode_t;
+} __attribute__ ((__packed__)) uvcx_rate_control_mode_t;
 
-
-typedef struct _uvcx_temporal_scale_mode_t
-{
+typedef struct _uvcx_temporal_scale_mode_t {
 	WORD	wLayerID;
 	BYTE	bTemporalScaleMode;
-} uvcx_temporal_scale_mode_t;
+} __attribute__ ((__packed__)) uvcx_temporal_scale_mode_t;
 
-
-typedef struct _uvcx_spatial_scale_mode_t
-{
+typedef struct _uvcx_spatial_scale_mode_t {
 	WORD	wLayerID;
 	BYTE	bSpatialScaleMode;
-} uvcx_spatial_scale_mode_t;
+} __attribute__ ((__packed__)) uvcx_spatial_scale_mode_t;
 
-
-typedef struct _uvcx_snr_scale_mode_t
-{
+typedef struct _uvcx_snr_scale_mode_t {
 	WORD	wLayerID;
 	BYTE	bSNRScaleMode;
 	BYTE	bMGSSublayerMode;
-} uvcx_snr_scale_mode_t;
+} __attribute__ ((__packed__)) uvcx_snr_scale_mode_t;
 
-
-typedef struct _uvcx_ltr_buffer_size_control_t
-{
+typedef struct _uvcx_ltr_buffer_size_control_t {
 	WORD	wLayerID;
 	BYTE	bLTRBufferSize;
 	BYTE	bLTREncoderControl;
-} uvcx_ltr_buffer_size_control_t;
+} __attribute__ ((__packed__)) uvcx_ltr_buffer_size_control_t;
 
-typedef struct _uvcx_ltr_picture_control
-{
+typedef struct _uvcx_ltr_picture_control {
 	WORD	wLayerID;
 	BYTE	bPutAtPositionInLTRBuffer;
 	BYTE	bEncodeUsingLTR;
-} uvcx_ltr_picture_control;
+} __attribute__ ((__packed__)) uvcx_ltr_picture_control;
 
-
-typedef struct _uvcx_picture_type_control_t
-{
+typedef struct _uvcx_picture_type_control_t {
 	WORD	wLayerID;
 	WORD	wPicType;
-} uvcx_picture_type_control_t;
+} __attribute__ ((__packed__)) uvcx_picture_type_control_t;
 
-
-typedef struct _uvcx_version_t
-{
+typedef struct _uvcx_version_t {
 	WORD	wVersion;
-} uvcx_version_t;
+} __attribute__ ((__packed__)) uvcx_version_t;
 
-
-typedef struct _uvcx_encoder_reset
-{
+typedef struct _uvcx_encoder_reset {
 	WORD	wLayerID;
-} uvcx_encoder_reset;
+} __attribute__ ((__packed__)) uvcx_encoder_reset;
 
-
-typedef struct _uvcx_framerate_config_t
-{
+typedef struct _uvcx_framerate_config_t {
 	WORD	wLayerID;
 	DWORD	dwFrameInterval;
-} uvcx_framerate_config_t;
+} __attribute__ ((__packed__)) uvcx_framerate_config_t;
 
-
-typedef struct _uvcx_video_advance_config_t
-{
+typedef struct _uvcx_video_advance_config_t {
 	WORD	wLayerID;
 	DWORD	dwMb_max;
 	BYTE	blevel_idc;
 	BYTE	bReserved;
-} uvcx_video_advance_config_t;
+} __attribute__ ((__packed__)) uvcx_video_advance_config_t;
 
-
-typedef struct _uvcx_bitrate_layers_t
-{
+typedef struct _uvcx_bitrate_layers_t {
 	WORD	wLayerID;
 	DWORD	dwPeakBitrate;
 	DWORD	dwAverageBitrate;
-} uvcx_bitrate_layers_t;
+} __attribute__ ((__packed__)) uvcx_bitrate_layers_t;
 
-
-typedef struct _uvcx_qp_steps_layers_t
-{
+typedef struct _uvcx_qp_steps_layers_t {
 	WORD	wLayerID;
 	BYTE	bFrameType;
 	BYTE	bMinQp;
 	BYTE	bMaxQp;
-} uvcx_qp_steps_layers_t;
-
+} __attribute__ ((__packed__)) uvcx_qp_steps_layers_t;
 
 #ifdef _WIN32
 // GUID of the UVC H.264 extension unit: {A29E7641-DE04-47E3-8B2B-F4341AFF003B}
